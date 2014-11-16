@@ -13,8 +13,7 @@ imports:
 plugins:
     docker:
         executor: host_agent
-        # source: https://github.com/cloudify-cosmo/cloudify-docker-plugin/archive/CFY-1377-upgrade-3.1.zip
-        source: cloudify-docker-plugin
+        source: https://github.com/cloudify-cosmo/cloudify-docker-plugin/archive/CFY-1377-upgrade-3.1.zip
 
 inputs:
 
