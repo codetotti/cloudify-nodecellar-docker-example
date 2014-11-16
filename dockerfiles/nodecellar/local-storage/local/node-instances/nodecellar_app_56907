@@ -1,0 +1,1 @@
+{"relationships": [{"target_name": "vm", "target_id": "vm_2d760", "type": "cloudify.relationships.contained_in"}, {"target_name": "mongod", "target_id": "mongod_0f57b", "type": "cloudify.relationships.connected_to"}], "name": "nodecellar_app", "runtime_properties": {}, "node_id": "nodecellar_app", "version": 0, "host_id": "vm_2d760", "id": "nodecellar_app_56907"}

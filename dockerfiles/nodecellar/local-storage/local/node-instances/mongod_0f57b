@@ -1,0 +1,1 @@
+{"relationships": [{"target_name": "vm", "target_id": "vm_2d760", "type": "cloudify.relationships.contained_in"}], "name": "mongod", "runtime_properties": {}, "node_id": "mongod", "version": 0, "host_id": "vm_2d760", "id": "mongod_0f57b"}
