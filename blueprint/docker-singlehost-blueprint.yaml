@@ -1,7 +1,8 @@
 tosca_definitions_version: cloudify_dsl_1_0
 
 imports:
-  - http://www.getcloudify.org/spec/cloudify/3.1rc1/types.yaml
+  - http://www.getcloudify.org/spec/cloudify/3.1/types.yaml
+  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-docker-plugin/CFY-1792-docker-plugin-pull-support/plugin.yaml
 
 ################################################################
 # Blueprint inputs
@@ -9,11 +10,6 @@ imports:
 # The values are provided via the inputs.json file.
 # passed when creating the deployment (-i inputs.json).
 ################################################################
-
-plugins:
-    docker:
-        executor: host_agent
-        source: https://github.com/cloudify-cosmo/cloudify-docker-plugin/archive/CFY-1377-upgrade-3.1.zip
 
 inputs:
 
@@ -25,52 +21,36 @@ inputs:
     agent_user:
         description: >
           User name used when SSH-ing into the started machine
-        default: vagrant
+        default: ubuntu
 
     agent_private_key_path:
         description: >
           Path to a private key that resided on the management machine.
           SSH-ing into agent machines will be done with this key.
-        default: /home/vagrant/.ssh/agent_key.pem    
+        default: /home/ubuntu/.ssh/agent_key.pem    
 
 node_types:  
 
   mongo_database:
     derived_from: cloudify.nodes.DBMS
     properties:
-      role:
-        description: MongoDB role
       port:
         description: MongoDB port
       web_port:
         description: MongoDB web console port
 
-  nodejs_app:
+  nodecellar_app:
     derived_from: cloudify.nodes.ApplicationServer
     properties:
-      base_port:
+      port:
         description: Web application port
         type: integer
-      env_file_path:
-          type: string
-          default: ''
-
-# relationships:
-#   nodecellar_connected_to_mongo:
-#     derived_from: cloudify.relationships.connected_to
-#     source_interfaces:
-#       cloudify.interfaces.relationship_lifecycle:
-#           postconfigure:
-#               implementation: nodecellar-scripts/postconfigure.py
-#               inputs: {}
-
 
 node_templates:
 
   vm:
     type: cloudify.nodes.Compute
     properties:
-      install_agent: false
       ip: { get_input: host_ip }
       cloudify_agent:
         user: { get_input: agent_user }
@@ -79,13 +59,18 @@ node_templates:
   mongod:
     type: mongo_database
     properties:
-      role: mongod
       port: 27017
       web_port: 28017
     interfaces:
       cloudify.interfaces.lifecycle:
+        create:
+          implementation: docker.docker_plugin.tasks.pull        
+          inputs:
+            daemon_client: {}
+            image_pull:
+              repo: dockerfile/mongodb
         configure:
-          implementation: docker.docker_plugin.tasks.configure
+          implementation: docker.docker_plugin.tasks.configure          
           inputs:
             daemon_client: {}
             container_config:
@@ -96,13 +81,13 @@ node_templates:
                 - { get_property: [ mongod, port ] }
                 - { get_property: [ mongod, web_port ] }
         start:
-          implementation: docker.docker_plugin.tasks.run
+          implementation: docker.docker_plugin.tasks.run          
           inputs:
             daemon_client:   {}
-            processes_to_wait_for: 
-              process_names: 
-                - mongod
-              wait_for_time_secs: 5
+            # processes_to_wait_for: 
+              # process_names: 
+                # - mongod
+              # wait_for_time_secs: 5
             container_start:               
               #publish_all_ports: true  
               port_bindings:                
@@ -124,25 +109,30 @@ node_templates:
       - target: vm
         type: cloudify.relationships.contained_in
 
-  nodecellar_app:
-    type: nodejs_app
+  nodecellar:
+    type: nodecellar_app
     properties:
-      base_port: 8080
+      port: 8080
     interfaces:
       cloudify.interfaces.lifecycle:
+        create:
+          implementation: docker.docker_plugin.tasks.pull        
+          inputs:
+            daemon_client: {}
+            image_pull:
+              repo: uric/nodecellar
         configure:
           implementation: docker.docker_plugin.tasks.configure
           inputs:
             daemon_client: {}
             container_config:
-              command: nodejs server.js
-              # src: http://insert/url/to/image/here            
-              image: cloudify/nodecellar
+              command: nodejs server.js              
+              image: uric/nodecellar
               environment:
-                NODECELLAR_PORT: { get_property: [ nodecellar_app, base_port ] }
+                NODECELLAR_PORT: { get_property: [ nodecellar, port ] }
                 MONGO_PORT: { get_property: [ mongod, port ] }
               ports: 
-                - { get_property: [ nodecellar_app, base_port ] }
+                - { get_property: [ nodecellar, port ] }
         start:
           implementation: docker.docker_plugin.tasks.run
           inputs:
@@ -150,7 +140,7 @@ node_templates:
             container_start:               
               #publish_all_ports: true  
               port_bindings:                
-                8080: { get_property: [ nodecellar_app, base_port ] }
+                8080: { get_property: [ nodecellar, port ] }
         stop:
           implementation: docker.docker_plugin.tasks.stop
           inputs:
@@ -170,14 +160,14 @@ node_templates:
         target: mongod
         source_interfaces:
           cloudify.interfaces.relationship_lifecycle:
-            preconfigure: nodecellar-scripts/preconfigure.py
+            preconfigure: nodecellar-scripts/preconfigure.py        
 
 outputs:
   endpoint:
     description: Web application endpoint
     value:
       ip_address: { get_attribute: [ vm, ip ] }
-      port: { get_property: [ nodecellar_app, base_port ] }
+      port: { get_property: [ nodecellar, port ] }
 
 
 
