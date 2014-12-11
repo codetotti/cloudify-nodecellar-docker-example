@@ -2,7 +2,7 @@ tosca_definitions_version: cloudify_dsl_1_0
 
 imports:
   - http://www.getcloudify.org/spec/cloudify/3.1/types.yaml
-  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-docker-plugin/CFY-1792-docker-plugin-pull-support/plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-docker-plugin/master/plugin.yaml
 
 ################################################################
 # Blueprint inputs
@@ -68,7 +68,7 @@ node_templates:
           inputs:
             daemon_client: {}
             image_pull:
-              repo: dockerfile/mongodb
+              repository: dockerfile/mongodb
         configure:
           implementation: docker.docker_plugin.tasks.configure          
           inputs:
@@ -120,7 +120,7 @@ node_templates:
           inputs:
             daemon_client: {}
             image_pull:
-              repo: uric/nodecellar
+              repository: uric/nodecellar
         configure:
           implementation: docker.docker_plugin.tasks.configure
           inputs:
