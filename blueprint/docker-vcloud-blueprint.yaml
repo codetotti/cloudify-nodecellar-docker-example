@@ -48,6 +48,14 @@ inputs:
   nodecellar_public_ip:
     type: string
 
+  modgodb_docker_image:
+    type: string
+    default: dockerfile/mongodb
+
+  nodecellar_docker_image:
+    type: string
+    default: uric/nodecellar
+
 node_types:  
 
   vcloud_configuration:
@@ -64,6 +72,9 @@ node_types:
         description: MongoDB port
       web_port:
         description: MongoDB web console port
+      docker_image:
+        description: MongoDB docker image repo
+        default: { get_input: modgodb_docker_image }
 
   nodecellar_app:
     derived_from: cloudify.nodes.ApplicationServer
@@ -71,6 +82,9 @@ node_types:
       port:
         description: Web application port
         type: integer
+      docker_image:
+        description: Nodecellar docker image repo
+        default: { get_input: nodecellar_docker_image }
 
 node_templates:
   vcloud_configuration:
@@ -110,7 +124,7 @@ node_templates:
           inputs:
             daemon_client: {}
             image_pull:
-              repository: dockerfile/mongodb
+              repository: { get_property: [mongod , docker_image] }
         configure:
           implementation: docker.docker_plugin.tasks.configure          
           inputs:
@@ -118,7 +132,7 @@ node_templates:
             container_config:
               command: mongod --rest --httpinterface --smallfiles
               # src: http://insert/url/to/image/here            
-              image: dockerfile/mongodb
+              image: { get_property: [mongod , docker_image] }
               ports: 
                 - { get_property: [ mongod, port ] }
                 - { get_property: [ mongod, web_port ] }
@@ -162,14 +176,14 @@ node_templates:
           inputs:
             daemon_client: {}
             image_pull:
-              repository: uric/nodecellar
+              repository: { get_property: [nodecellar , docker_image] }
         configure:
           implementation: docker.docker_plugin.tasks.configure
           inputs:
             daemon_client: {}
             container_config:
               command: nodejs server.js              
-              image: uric/nodecellar
+              image: { get_property: [nodecellar , docker_image] }
               environment:
                 NODECELLAR_PORT: { get_property: [ nodecellar, port ] }
                 MONGO_PORT: { get_property: [ mongod, port ] }
