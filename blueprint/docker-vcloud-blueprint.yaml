@@ -110,6 +110,8 @@ node_templates:
     relationships:
       - target: management_port
         type: cloudify.vcloud.server_connected_to_port
+      - target: nodecellar_floatingip
+        type: cloudify.vcloud.server_connected_to_floating_ip
 
   mongod:
     type: mongo_database
@@ -234,9 +236,7 @@ node_templates:
             gateway: { get_input: floating_ip_gateway }
             public_ip: { get_input: nodecellar_public_ip }
         vcloud_config: { get_property: [vcloud_configuration, vcloud_config] }
-    relationships:
-        - target: docker-host
-          type: cloudify.vcloud.server_connected_to_floating_ip
+
 
 ###########################################################
 # This outputs section exposes the application endpoint.
