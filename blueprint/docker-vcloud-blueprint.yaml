@@ -1,0 +1,255 @@
+tosca_definitions_version: cloudify_dsl_1_0
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/3.1/types.yaml
+  - https://raw.githubusercontent.com/cloudify-cosmo/tosca-vcloud-plugin/develop/plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-docker-plugin/1.1/plugin.yaml
+
+################################################################
+# Blueprint inputs
+# 
+# The values are provided via the inputs.json file.
+# passed when creating the deployment (-i inputs.json).
+################################################################
+
+inputs:
+
+  vcloud_username:
+      type: string
+
+  vcloud_password:
+      type: string
+
+  vcloud_url:
+      type: string
+
+  vcloud_service:
+      type: string
+
+  vcloud_vcd:
+      type: string
+
+  catalog:
+    type: string
+
+  template:
+    type: string
+
+  agent_user:
+    type: string
+    default: ubuntu
+
+  management_network_name:
+    type: string
+
+  floating_ip_gateway:
+    type: string
+
+  nodecellar_public_ip:
+    type: string
+
+  modgodb_docker_image:
+    type: string
+    default: dockerfile/mongodb
+
+  nodecellar_docker_image:
+    type: string
+    default: uric/nodecellar
+
+node_types:  
+
+  vcloud_configuration:
+      derived_from: cloudify.nodes.Root
+      properties:
+          vcloud_config: {}
+
+  mongo_database:
+    derived_from: cloudify.nodes.DBMS
+    properties:
+      role:
+        description: MongoDB role
+      port:
+        description: MongoDB port
+      web_port:
+        description: MongoDB web console port
+      docker_image:
+        description: MongoDB docker image repo
+        default: { get_input: modgodb_docker_image }
+
+  nodecellar_app:
+    derived_from: cloudify.nodes.ApplicationServer
+    properties:
+      port:
+        description: Web application port
+        type: integer
+      docker_image:
+        description: Nodecellar docker image repo
+        default: { get_input: nodecellar_docker_image }
+
+node_templates:
+  vcloud_configuration:
+      type: vcloud_configuration
+      properties:
+          vcloud_config:
+              username: { get_input: vcloud_username }
+              password: { get_input: vcloud_password }
+              url: { get_input: vcloud_url }
+              service: { get_input: vcloud_service }
+              vdc: { get_input: vcloud_vcd }
+
+  docker-host: 
+    type: cloudify.vcloud.nodes.Server
+    properties:
+      cloudify_agent:        
+          user: { get_input: agent_user }
+      server:        
+          catalog: { get_input: catalog }
+          template: { get_input: template }
+      management_network: { get_input: management_network_name }
+      vcloud_config: { get_property: [vcloud_configuration, vcloud_config] }
+    relationships:
+      - target: management_port
+        type: cloudify.vcloud.server_connected_to_port
+      - target: nodecellar_floatingip
+        type: cloudify.vcloud.server_connected_to_floating_ip
+
+  mongod:
+    type: mongo_database
+    properties:
+      role: mongod
+      port: 27017
+      web_port: 28017
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: docker.docker_plugin.tasks.pull        
+          inputs:
+            daemon_client: {}
+            image_pull:
+              repository: { get_property: [mongod , docker_image] }
+        configure:
+          implementation: docker.docker_plugin.tasks.configure          
+          inputs:
+            daemon_client: {}
+            container_config:
+              command: mongod --rest --httpinterface --smallfiles
+              # src: http://insert/url/to/image/here            
+              image: { get_property: [mongod , docker_image] }
+              ports: 
+                - { get_property: [ mongod, port ] }
+                - { get_property: [ mongod, web_port ] }
+        start:
+          implementation: docker.docker_plugin.tasks.run          
+          inputs:
+            daemon_client:   {}
+            # processes_to_wait_for: 
+              # process_names: 
+                # - mongod
+              # wait_for_time_secs: 5
+            container_start:               
+              #publish_all_ports: true  
+              port_bindings:                
+                27017: { get_property: [ mongod, port ] }
+                28017: { get_property: [ mongod, web_port ] }
+        stop:
+          implementation: docker.docker_plugin.tasks.stop
+          inputs:
+            daemon_client:  {}
+            container_stop: {}
+        delete:
+          implementation: docker.docker_plugin.tasks.delete
+          inputs:
+            daemon_client:    {}
+            # required in case container to remove is currently running
+            container_stop:   {}
+            container_remove: {}
+    relationships:
+      - target: docker-host
+        type: cloudify.relationships.contained_in
+
+  nodecellar:
+    type: nodecellar_app
+    properties:
+      port: 8080
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: docker.docker_plugin.tasks.pull        
+          inputs:
+            daemon_client: {}
+            image_pull:
+              repository: { get_property: [nodecellar , docker_image] }
+        configure:
+          implementation: docker.docker_plugin.tasks.configure
+          inputs:
+            daemon_client: {}
+            container_config:
+              command: nodejs server.js              
+              image: { get_property: [nodecellar , docker_image] }
+              environment:
+                NODECELLAR_PORT: { get_property: [ nodecellar, port ] }
+                MONGO_PORT: { get_property: [ mongod, port ] }
+              ports: 
+                - { get_property: [ nodecellar, port ] }
+        start:
+          implementation: docker.docker_plugin.tasks.run
+          inputs:
+            daemon_client:   {}
+            container_start:               
+              #publish_all_ports: true  
+              port_bindings:                
+                8080: { get_property: [ nodecellar, port ] }
+        stop:
+          implementation: docker.docker_plugin.tasks.stop
+          inputs:
+            daemon_client:  {}
+            container_stop: {}
+        delete:
+          implementation: docker.docker_plugin.tasks.delete
+          inputs:
+            daemon_client:    {}
+            # required in case container to remove is currently running
+            container_stop:   {}
+            container_remove: {}    
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: docker-host
+      - type: cloudify.relationships.connected_to
+        target: mongod
+        source_interfaces:
+          cloudify.interfaces.relationship_lifecycle:
+            preconfigure: nodecellar-scripts/preconfigure.py
+
+  management_port:
+      type: cloudify.vcloud.nodes.Port
+      properties:
+          port:
+            network: { get_input: management_network_name }
+            ip_allocation_mode: dhcp
+            primary_interface: true
+          vcloud_config: { get_property: [vcloud_configuration, vcloud_config] }
+
+  nodecellar_floatingip:
+    type: cloudify.vcloud.nodes.FloatingIP
+    properties:
+        floatingip:
+            gateway: { get_input: floating_ip_gateway }
+            public_ip: { get_input: nodecellar_public_ip }
+        vcloud_config: { get_property: [vcloud_configuration, vcloud_config] }
+
+
+###########################################################
+# This outputs section exposes the application endpoint.
+# You can access it by running:
+#   - cfy deployments -d <deployment_id> outputs
+###########################################################
+
+outputs:
+  endpoint:
+    description: Web application endpoint
+    value:
+      ip_address: { get_attribute: [ nodecellar_floatingip, floating_ip_address ] }
+      port: { get_property: [ nodecellar, port ] }
+
+
+
