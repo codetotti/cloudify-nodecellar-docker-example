@@ -62,7 +62,7 @@ node_templates:
           MONGO_PORT: 27017
     relationships:
       - type: cloudify.relationships.contained_in
-        target: vm
+        target: host
       - type: cloudify.relationships.connected_to
         target: mongod_container
         source_interfaces:
@@ -84,11 +84,11 @@ node_templates:
         command: mongod --rest --httpinterface --smallfiles
     relationships:
       - type: cloudify.relationships.contained_in
-        target: vm
+        target: host
 
 outputs:
   endpoint:
     description: Web application endpoint
     value:
-      ip_address: { get_attribute: [ vm, ip ] }
+      ip_address: { get_attribute: [ host, ip ] }
       port: 8080
