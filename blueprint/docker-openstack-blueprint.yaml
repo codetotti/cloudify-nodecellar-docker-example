@@ -2,15 +2,8 @@ tosca_definitions_version: cloudify_dsl_1_0
 
 imports:
   - http://www.getcloudify.org/spec/cloudify/3.1/types.yaml
-  - http://www.getcloudify.org/spec/openstack-plugin/1.1/plugin.yaml
   - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-docker-plugin/1.1/plugin.yaml
-
-################################################################
-# Blueprint inputs
-# 
-# The values are provided via the inputs.json file.
-# passed when creating the deployment (-i inputs.json).
-################################################################
+  - http://www.getcloudify.org/spec/openstack-plugin/1.1/plugin.yaml
 
 inputs:
   image:
@@ -48,205 +41,95 @@ node_types:
         type: integer
 
 node_templates:
-  vm: 
+  vm:
     type: cloudify.openstack.nodes.Server
     properties:
-      cloudify_agent:        
+      cloudify_agent:
           user: { get_input: agent_user }
-      server:        
+          home_dir: /home/ubuntu
+      server:
           image: { get_input: image }
           flavor: { get_input: flavor }
 
     relationships:
-
-      ###########################################################
-      # Attaching the mongo security group to the host
-      ###########################################################
-
+      - target: nodecellar_security_group
+        type: cloudify.openstack.server_connected_to_security_group
       - target: mongod_security_group
         type: cloudify.openstack.server_connected_to_security_group
-
-      ###########################################################
-      # Attaching a floating ip to the host
-      ###########################################################
-
       - target: nodecellar_floatingip
         type: cloudify.openstack.server_connected_to_floating_ip
 
-      ###########################################################
-      # Attaching the nodecellar security group to
-      # the nodecellar host
-      ###########################################################
-
-      - target: nodecellar_security_group
-        type: cloudify.openstack.server_connected_to_security_group
-
-  mongod:
-    type: mongo_database
+  nodecellar_container:
+    type: cloudify.docker.Container
     properties:
-      role: mongod
-      port: 27017
-      web_port: 28017
-    interfaces:
-      cloudify.interfaces.lifecycle:
-        create:
-          implementation: docker.docker_plugin.tasks.pull        
-          inputs:
-            daemon_client: {}
-            image_pull:
-              repository: dockerfile/mongodb
-        configure:
-          implementation: docker.docker_plugin.tasks.configure          
-          inputs:
-            daemon_client: {}
-            container_config:
-              command: mongod --rest --httpinterface --smallfiles
-              # src: http://insert/url/to/image/here            
-              image: dockerfile/mongodb
-              ports: 
-                - { get_property: [ mongod, port ] }
-                - { get_property: [ mongod, web_port ] }
-        start:
-          implementation: docker.docker_plugin.tasks.run          
-          inputs:
-            daemon_client:   {}
-            # processes_to_wait_for: 
-              # process_names: 
-                # - mongod
-              # wait_for_time_secs: 5
-            container_start:               
-              #publish_all_ports: true  
-              port_bindings:                
-                27017: { get_property: [ mongod, port ] }
-                28017: { get_property: [ mongod, web_port ] }
-        stop:
-          implementation: docker.docker_plugin.tasks.stop
-          inputs:
-            daemon_client:  {}
-            container_stop: {}
-        delete:
-          implementation: docker.docker_plugin.tasks.delete
-          inputs:
-            daemon_client:    {}
-            # required in case container to remove is currently running
-            container_stop:   {}
-            container_remove: {}
-    relationships:
-      - target: vm
-        type: cloudify.relationships.contained_in
-
-  nodecellar:
-    type: nodecellar_app
-    properties:
-      port: 8080
-    interfaces:
-      cloudify.interfaces.lifecycle:
-        create:
-          implementation: docker.docker_plugin.tasks.pull        
-          inputs:
-            daemon_client: {}
-            image_pull:
-              repository: uric/nodecellar
-        configure:
-          implementation: docker.docker_plugin.tasks.configure
-          inputs:
-            daemon_client: {}
-            container_config:
-              command: nodejs server.js              
-              image: uric/nodecellar
-              environment:
-                NODECELLAR_PORT: { get_property: [ nodecellar, port ] }
-                MONGO_PORT: { get_property: [ mongod, port ] }
-              ports: 
-                - { get_property: [ nodecellar, port ] }
-        start:
-          implementation: docker.docker_plugin.tasks.run
-          inputs:
-            daemon_client:   {}
-            container_start:               
-              #publish_all_ports: true  
-              port_bindings:                
-                8080: { get_property: [ nodecellar, port ] }
-        stop:
-          implementation: docker.docker_plugin.tasks.stop
-          inputs:
-            daemon_client:  {}
-            container_stop: {}
-        delete:
-          implementation: docker.docker_plugin.tasks.delete
-          inputs:
-            daemon_client:    {}
-            # required in case container to remove is currently running
-            container_stop:   {}
-            container_remove: {}    
+      name: nodecellar
+      image:
+        repository: uric/nodecellar
+      ports:
+        8080: 8080
+      params:
+        stdin_open: true
+        tty: true
+        command: nodejs server.js
+        environment:
+          NODECELLAR_PORT: 8080
+          MONGO_PORT: 27017
     relationships:
       - type: cloudify.relationships.contained_in
         target: vm
       - type: cloudify.relationships.connected_to
-        target: mongod
+        target: mongod_container
         source_interfaces:
           cloudify.interfaces.relationship_lifecycle:
             preconfigure: nodecellar-scripts/preconfigure.py
 
-  ###########################################################
-  # A security group to enable access to the nodejs host
-  # using the port of the nodecellar application.
-  #
-  # This security group will be attached to the nodejs_host
-  ###########################################################
+  mongod_container:
+    type: cloudify.docker.Container
+    properties:
+      name: mongod
+      image:
+        repository: dockerfile/mongodb
+      ports:
+        27017: 27017
+        28017: 28017
+      params:
+        stdin_open: true
+        tty: true
+        command: mongod --rest --httpinterface --smallfiles
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: vm
 
   nodecellar_security_group:
     type: cloudify.openstack.nodes.SecurityGroup
     properties:
       security_group:
-        name: uri-ga-nodecellar_security_group
+        name: nodecellar-security-group-docker
       rules:
         - remote_ip_prefix: 0.0.0.0/0
-          port: { get_property: [ nodecellar, port ] }
-
-  ###########################################################
-  # A security group to enable access to the mongo host
-  # using the port of the mongo node.
-  #
-  # We need this so that the nodecellar application can
-  # comminicate with MongoDB, since they are running on
-  # different hosts.
-  ###########################################################
+          port: 8080
+        - remote_ip_prefix: 0.0.0.0/0
+          port: 22
 
   mongod_security_group:
     type: cloudify.openstack.nodes.SecurityGroup
     properties:
       security_group:
-        name: uri-ga-mongod_security_group
+        name: mongod-security-group-docker
       rules:
         - remote_ip_prefix: 0.0.0.0/0
-          port: { get_property: [ mongod, port ] }
+          port: 27017
         - remote_ip_prefix: 0.0.0.0/0
-          port: { get_property: [ mongod, web_port ] }
+          port: 28017
         - remote_ip_prefix: 0.0.0.0/0
           port: 22
 
-  ###########################################################
-  # A floating ip to be attached to the nodejs host, since
-  # eventually we want to be able to access it
-  # from any machine, on any network.
-  ###########################################################
-
   nodecellar_floatingip:
     type: cloudify.openstack.nodes.FloatingIP
-
-###########################################################
-# This outputs section exposes the application endpoint.
-# You can access it by running:
-#   - cfy deployments -d <deployment_id> outputs
-###########################################################
 
 outputs:
   endpoint:
     description: Web application endpoint
     value:
       ip_address: { get_attribute: [ nodecellar_floatingip, floating_ip_address ] }
-      port: { get_property: [ nodecellar, port ] }
-
-
-
+      port: 8080
