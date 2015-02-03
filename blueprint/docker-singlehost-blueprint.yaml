@@ -27,32 +27,31 @@ inputs:
         description: >
           Path to a private key that resided on the management machine.
           SSH-ing into agent machines will be done with this key.
-        default: /home/ubuntu/.ssh/agent_key.pem    
+        default: ~/.ssh/agent_key.pem
+
     install_agent: 
         description: > 
           When running in local mode set this to false
-        default: true
+        default: false
 
-node_types:  
-
-  mongo_database:
-    derived_from: cloudify.nodes.DBMS
-    properties:
-      port:
-        description: MongoDB port
-      web_port:
-        description: MongoDB web console port
-
-  nodecellar_app:
-    derived_from: cloudify.nodes.ApplicationServer
-    properties:
-      port:
-        description: Web application port
-        type: integer
+    web_port:
+        description: >
+          Which port you want to map the web port to.
+        default: 8080
+    
+    mongo_port:
+        description: >
+          Which port you want to map the mongo port to.
+        default: 27017
+    
+    web_status_port:
+        description: >
+          Which port for the mongo web status page.
+        default: 28017
 
 node_templates:
 
-  vm:
+  host:
     type: cloudify.nodes.Compute
     properties:
       install_agent: { get_input: install_agent }
@@ -61,118 +60,50 @@ node_templates:
         user: { get_input: agent_user }
         key: { get_input: agent_private_key_path }
 
-  mongod:
-    type: mongo_database
+  nodecellar_container:
+    type: cloudify.docker.Container
     properties:
-      port: 27017
-      web_port: 28017
-    interfaces:
-      cloudify.interfaces.lifecycle:
-        create:
-          implementation: docker.docker_plugin.tasks.pull        
-          inputs:
-            daemon_client: {}
-            image_pull:
-              repository: dockerfile/mongodb
-        configure:
-          implementation: docker.docker_plugin.tasks.configure          
-          inputs:
-            daemon_client: {}
-            container_config:
-              command: mongod --rest --httpinterface --smallfiles
-              # src: http://insert/url/to/image/here            
-              image: dockerfile/mongodb
-              ports: 
-                - { get_property: [ mongod, port ] }
-                - { get_property: [ mongod, web_port ] }
-        start:
-          implementation: docker.docker_plugin.tasks.run          
-          inputs:
-            daemon_client:   {}
-            # processes_to_wait_for: 
-              # process_names: 
-                # - mongod
-              # wait_for_time_secs: 5
-            container_start:               
-              #publish_all_ports: true  
-              port_bindings:                
-                27017: { get_property: [ mongod, port ] }
-                28017: { get_property: [ mongod, web_port ] }
-        stop:
-          implementation: docker.docker_plugin.tasks.stop
-          inputs:
-            daemon_client:  {}
-            container_stop: {}
-        delete:
-          implementation: docker.docker_plugin.tasks.delete
-          inputs:
-            daemon_client:    {}
-            # required in case container to remove is currently running
-            container_stop:   {}
-            container_remove: {}
-    relationships:
-      - target: vm
-        type: cloudify.relationships.contained_in
-
-  nodecellar:
-    type: nodecellar_app
-    properties:
-      port: 8080
-    interfaces:
-      cloudify.interfaces.lifecycle:
-        create:
-          implementation: docker.docker_plugin.tasks.pull        
-          inputs:
-            daemon_client: {}
-            image_pull:
-              repository: uric/nodecellar
-        configure:
-          implementation: docker.docker_plugin.tasks.configure
-          inputs:
-            daemon_client: {}
-            container_config:
-              command: nodejs server.js              
-              image: uric/nodecellar
-              environment:
-                NODECELLAR_PORT: { get_property: [ nodecellar, port ] }
-                MONGO_PORT: { get_property: [ mongod, port ] }
-              ports: 
-                - { get_property: [ nodecellar, port ] }
-        start:
-          implementation: docker.docker_plugin.tasks.run
-          inputs:
-            daemon_client:   {}
-            container_start:               
-              #publish_all_ports: true  
-              port_bindings:                
-                8080: { get_property: [ nodecellar, port ] }
-        stop:
-          implementation: docker.docker_plugin.tasks.stop
-          inputs:
-            daemon_client:  {}
-            container_stop: {}
-        delete:
-          implementation: docker.docker_plugin.tasks.delete
-          inputs:
-            daemon_client:    {}
-            # required in case container to remove is currently running
-            container_stop:   {}
-            container_remove: {}    
+      name: nodecellar
+      image:
+        repository: uric/nodecellar
+      ports:
+        8080: { get_input: web_port }
+      params:
+        stdin_open: true
+        tty: true
+        command: nodejs server.js
+        environment:
+          NODECELLAR_PORT: { get_input: web_port }
+          MONGO_PORT: { get_input: mongo_port }
     relationships:
       - type: cloudify.relationships.contained_in
-        target: vm
+        target: host
       - type: cloudify.relationships.connected_to
-        target: mongod
+        target: mongod_container
         source_interfaces:
           cloudify.interfaces.relationship_lifecycle:
-            preconfigure: nodecellar-scripts/preconfigure.py        
+            preconfigure: nodecellar-scripts/preconfigure.py
+
+  mongod_container:
+    type: cloudify.docker.Container
+    properties:
+      name: mongod
+      image:
+        repository: dockerfile/mongodb
+      ports:
+        27017: { get_input: mongo_port }
+        28017: { get_input: web_status_port }
+      params:
+        stdin_open: true
+        tty: true
+        command: mongod --rest --httpinterface --smallfiles
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: host
 
 outputs:
   endpoint:
     description: Web application endpoint
     value:
-      ip_address: { get_attribute: [ vm, ip ] }
-      port: { get_property: [ nodecellar, port ] }
-
-
-
+      ip_address: { get_attribute: [ host, ip ] }
+      port: { get_input: web_port }
