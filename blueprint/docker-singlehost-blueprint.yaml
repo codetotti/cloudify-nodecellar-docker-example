@@ -34,6 +34,21 @@ inputs:
           When running in local mode set this to false
         default: false
 
+    web_port:
+        description: >
+          Which port you want to map the web port to.
+        default: 8080
+    
+    mongo_port:
+        description: >
+          Which port you want to map the mongo port to.
+        default: 27017
+    
+    web_status_port:
+        description: >
+          Which port for the mongo web status page.
+        default: 28017
+
 node_templates:
 
   host:
@@ -52,14 +67,14 @@ node_templates:
       image:
         repository: uric/nodecellar
       ports:
-        8080: 8080
+        8080: { get_input: web_port }
       params:
         stdin_open: true
         tty: true
         command: nodejs server.js
         environment:
-          NODECELLAR_PORT: 8080
-          MONGO_PORT: 27017
+          NODECELLAR_PORT: { get_input: web_port }
+          MONGO_PORT: { get_input: mongo_port }
     relationships:
       - type: cloudify.relationships.contained_in
         target: host
@@ -76,8 +91,8 @@ node_templates:
       image:
         repository: dockerfile/mongodb
       ports:
-        27017: 27017
-        28017: 28017
+        27017: { get_input: mongo_port }
+        28017: { get_input: web_status_port }
       params:
         stdin_open: true
         tty: true
@@ -91,4 +106,4 @@ outputs:
     description: Web application endpoint
     value:
       ip_address: { get_attribute: [ host, ip ] }
-      port: 8080
+      port: { get_input: web_port }
