@@ -114,7 +114,7 @@ The Openstack is slightly different than what we have described:
 * Creates a virtual machine in Openstack.
 * Installs Docker on the virtual machine.
 * Pulls the respective images and runs the containers on the virtual machine.
-* Creates two security groups: Nodecellar, and Mongo.
+* Creates two security groups: Nodecellar, and Mongo, and attaches them to the manager.
 
 Conversely, the singlehost:
 
