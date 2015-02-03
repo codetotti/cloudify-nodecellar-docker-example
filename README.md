@@ -3,7 +3,7 @@ cloudify-nodecellar-docker-example
 
 Sample application running inside docker containers
 
-## Singlehost Example
+## Walk-through
 
 Nodecellar is a nodejs frontend that uses a mongo database as its backend. In this example each software component of the application is run inside of its own Docker contianer.
 
