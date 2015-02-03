@@ -107,7 +107,25 @@ When it is finished, you can open a browser to 127.0.0.1 and you will see the No
 
 # Running the example inside of a manager
 
-If you want to use a manager to deploy the example, start out by initializing:
+This is an example running the Openstack blueprint.
+
+The Openstack is slightly different than what we have described:
+
+* Creates a virtual machine in Openstack.
+* Installs Docker on the virtual machine.
+* Pulls the respective images and runs the containers on the virtual machine.
+* Creates two security groups: Nodecellar, and Mongo.
+
+Conversely, the singlehost:
+
+* Runs locally.
+* Does not install Docker.
+* Pulls the respective images and runs the containers locally.
+* There are no additional resources like the security group.
+
+When it comes to deploying from a manager, the process is essentially the same between blueprints:
+
+Start by initializing the environment.
 
 `cfy init`
 
