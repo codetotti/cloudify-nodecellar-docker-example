@@ -125,6 +125,6 @@ Create a deployment:
 
 Now you can execute it:
 
-`cfy executions start -w install`
+`cfy executions start -w install -d deploy-blueprint`
 
 Again this may take a few moments to run, but when you are finished, you can direct a browser to the virtual machine created by the execution and you will see Nodecellar there.
