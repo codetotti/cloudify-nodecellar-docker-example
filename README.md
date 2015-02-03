@@ -104,3 +104,27 @@ Now you are ready to run the blueprint:
 This might take a while to execute. It needs to install download the Docker images and then it will create the containers.
 
 When it is finished, you can open a browser to 127.0.0.1 and you will see the Nodecellar application.
+
+# Running the example inside of a manager
+
+If you want to use a manager to deploy the example, start out by initializing:
+
+`cfy init`
+
+Now tell Cloudify, the URL of your manager:
+
+`cfy use -t your-manager-ip`
+
+Upload the blueprint:
+
+`cfy blueprints upload -p docker-openstack-blueprint.yaml -b nodecellar-docker`
+
+Create a deployment:
+
+`cfy deployments create -b nodecellar-docker -d deploy-blueprint`
+
+Now you can execute it:
+
+`cfy executions start -w install`
+
+Again this may take a few moments to run, but when you are finished, you can direct a browser to the virtual machine created by the execution and you will see Nodecellar there.
