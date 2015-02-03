@@ -3,7 +3,7 @@ cloudify-nodecellar-docker-example
 
 Sample application running inside docker containers
 
-# Singlehost Example
+## Singlehost Example
 
 Nodecellar is a nodejs frontend that uses a mongo database as its backend. In this example each software component of the application is run inside of its own Docker contianer.
 
@@ -84,6 +84,8 @@ Next is the MongoDB container. The plugin will pull the dockerfile/mongodb image
 
 
 The plugin then starts the container with a pseudo TTY and runs the command `mondod --rest --httpinterface --smallfiles`. Again the ports 27017 and 28017 are mapped to themselves, but you could change them to different mappings if you configured MongoDB to other ports.
+
+## Execute the Operations
 
 Now, let's get Cloudify setup so you can run the plugin.
 
