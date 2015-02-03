@@ -21,24 +21,20 @@ inputs:
       User name used when SSH-ing into the started machine
     default: ubuntu
 
-node_types:  
+    web_port:
+        description: >
+          Which port you want to map the web port to.
+        default: 8080
 
-  mongo_database:
-    derived_from: cloudify.nodes.DBMS
-    properties:
-      role:
-        description: MongoDB role
-      port:
-        description: MongoDB port
-      web_port:
-        description: MongoDB web console port
-
-  nodecellar_app:
-    derived_from: cloudify.nodes.ApplicationServer
-    properties:
-      port:
-        description: Web application port
-        type: integer
+    mongo_port:
+        description: >
+          Which port you want to map the mongo port to.
+        default: 27017
+    
+    web_status_port:
+        description: >
+          Which port for the mongo web status page.
+        default: 28017
 
 node_templates:
   vm:
@@ -66,14 +62,14 @@ node_templates:
       image:
         repository: uric/nodecellar
       ports:
-        8080: 8080
+        8080: { get_input: web_port }
       params:
         stdin_open: true
         tty: true
         command: nodejs server.js
         environment:
-          NODECELLAR_PORT: 8080
-          MONGO_PORT: 27017
+          NODECELLAR_PORT: { get_input: web_port }
+          MONGO_PORT: { get_input: mongo_port }
     relationships:
       - type: cloudify.relationships.contained_in
         target: vm
@@ -90,8 +86,8 @@ node_templates:
       image:
         repository: dockerfile/mongodb
       ports:
-        27017: 27017
-        28017: 28017
+        27017: { get_input: mongo_port }
+        28017: { get_input: web_status_port }
       params:
         stdin_open: true
         tty: true
@@ -107,7 +103,7 @@ node_templates:
         name: nodecellar-security-group-docker
       rules:
         - remote_ip_prefix: 0.0.0.0/0
-          port: 8080
+          port: { get_input: web_port }
         - remote_ip_prefix: 0.0.0.0/0
           port: 22
 
@@ -118,9 +114,9 @@ node_templates:
         name: mongod-security-group-docker
       rules:
         - remote_ip_prefix: 0.0.0.0/0
-          port: 27017
+          port: { get_input: mongo_port }
         - remote_ip_prefix: 0.0.0.0/0
-          port: 28017
+          port: { get_input: web_status_port }
         - remote_ip_prefix: 0.0.0.0/0
           port: 22
 
@@ -132,4 +128,4 @@ outputs:
     description: Web application endpoint
     value:
       ip_address: { get_attribute: [ nodecellar_floatingip, floating_ip_address ] }
-      port: 8080
+      port: { get_input: web_port }
