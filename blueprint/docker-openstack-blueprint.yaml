@@ -21,20 +21,20 @@ inputs:
       User name used when SSH-ing into the started machine
     default: ubuntu
 
-    web_port:
-        description: >
-          Which port you want to map the web port to.
-        default: 8080
+  web_port:
+    description: >
+      Which port you want to map the web port to.
+    default: 8080
 
-    mongo_port:
-        description: >
-          Which port you want to map the mongo port to.
-        default: 27017
+  mongo_port:
+    description: >
+      Which port you want to map the mongo port to.
+    default: 27017
     
-    web_status_port:
-        description: >
-          Which port for the mongo web status page.
-        default: 28017
+  web_status_port:
+    description: >
+      Which port for the mongo web status page.
+    default: 28017
 
 node_templates:
   vm:
