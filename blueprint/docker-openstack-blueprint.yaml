@@ -106,6 +106,9 @@ node_templates:
           port: { get_input: web_port }
         - remote_ip_prefix: 0.0.0.0/0
           port: 22
+    relationships:
+      - type: cloudify.relationships.connected_to
+        target: mongod_security_group
 
   mongod_security_group:
     type: cloudify.openstack.nodes.SecurityGroup
