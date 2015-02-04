@@ -107,6 +107,59 @@ When it is finished, you can open a browser to 127.0.0.1 and you will see the No
 
 # Running the example inside of a manager
 
+## Vagrant
+
+First download the Cloudify 3.1 Vagrantfile:
+
+`wget http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/3.1.0/ga-RELEASE/Vagrantfile`
+
+Then add the Vagrant box:
+
+`vagrant box add http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/3.1.0/ga-RELEASE/cloudify-virtualbox_3.1.0-ga-b85.box --name=cloudify-box`
+
+When the download is finished, you can "up" the box:
+
+`vagrant up`
+
+Now, you can ssh into the box:
+
+`vagrant ssh`
+
+You need to install Docker, because the plugin's Docker installation script only works with Ubuntu Precise:
+
+`curl -sSL https://get.docker.com/ubuntu/ | sudo sh`
+`sudo gpasswd -a ${USER} docker`
+
+Now logout and log back in:
+`exit`
+`vagrant ssh`
+
+Change into the blueprints directory and download this example:
+
+`cd blueprints`
+
+`git clone https://github.com/cloudify-cosmo/cloudify-nodecellar-docker-example.git`
+
+And checkout the version:
+
+`git checkout tags/3.1`
+
+There are some minor changes to use the single host example in vagrant. So in that case you will use the vagrant_inputs.json file.
+
+`cfy blueprints upload -b nodecellar -p blueprint/docker-singlehost-blueprint.yaml`
+
+Create a deployment:
+
+`cfy deployments create -b nodecellar -i cfy-vagrant-inputs.json -d nodecellar`
+
+And execute the install workflow:
+
+`cfy executions start -w install`
+
+After the deployment runs, you'll be able to go to the following URL and visit the Nodecellar application: http://11.0.0.7:8080/.
+
+## Openstack
+
 This is an example running the Openstack blueprint.
 
 The Openstack is slightly different than what we have described:
