@@ -128,15 +128,19 @@ Now, you can ssh into the box:
 You need to install Docker, because the plugin's Docker installation script only works with Ubuntu Precise:
 
 `curl -sSL https://get.docker.com/ubuntu/ | sudo sh`
+
 `sudo gpasswd -a ${USER} docker`
 
 Now logout and log back in:
+
 `exit`
+
 `vagrant ssh`
 
 Change into the blueprints directory and download this example:
 
 `cd blueprints`
+
 
 `git clone https://github.com/cloudify-cosmo/cloudify-nodecellar-docker-example.git`
 
