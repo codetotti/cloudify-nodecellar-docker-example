@@ -115,6 +115,7 @@ The Openstack is slightly different than what we have described:
 * Installs Docker on the virtual machine.
 * Pulls the respective images and runs the containers on the virtual machine.
 * Creates two security groups: Nodecellar, and Mongo, and attaches them to the manager.
+* There is a cloudify.relationships.connected_to relationship between the Nodecellar and Mongo security groups, which might strike you as odd. This is a temporary work-around for an Openstack issue where simultaneously connecting security groups to a server might fail without an error. This work-around creates a dependency between these security groups to make sure that one is attached first, and then the other.
 
 Conversely, the singlehost:
 
