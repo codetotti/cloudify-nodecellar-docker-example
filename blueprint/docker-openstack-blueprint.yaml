@@ -67,17 +67,17 @@ node_templates:
         stdin_open: true
         tty: true
         command: nodejs server.js
+        links:
+           mongod: { get_attribute: [ mongod_container, container_id ] }
         environment:
           NODECELLAR_PORT: { get_input: web_port }
           MONGO_PORT: { get_input: mongo_port }
+          MONGO_HOST: { get_property: [ mongod_container, name ] }
     relationships:
       - type: cloudify.relationships.contained_in
         target: vm
       - type: cloudify.relationships.connected_to
         target: mongod_container
-        source_interfaces:
-          cloudify.interfaces.relationship_lifecycle:
-            preconfigure: nodecellar-scripts/preconfigure.py
 
   mongod_container:
     type: cloudify.docker.Container
