@@ -1,8 +1,8 @@
 tosca_definitions_version: cloudify_dsl_1_0
 
 imports:
-  - http://www.getcloudify.org/spec/cloudify/3.2m4/types.yaml
-  - http://www.getcloudify.org/spec/docker-plugin/1.2m4/plugin.yaml
+  - http://www.getcloudify.org/spec/cloudify/3.1/types.yaml
+  - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-docker-plugin/1.1/plugin.yaml
 
 ################################################################
 # Blueprint inputs
@@ -73,7 +73,7 @@ node_templates:
         tty: true
         command: nodejs server.js
         links:
-           mongod: { get_attribute: [ mongod_container, container_id ] }
+           mongod: { get_property: [ mongod_container, name ] }
         environment:
           NODECELLAR_PORT: { get_input: web_port }
           MONGO_PORT: { get_input: mongo_port }
