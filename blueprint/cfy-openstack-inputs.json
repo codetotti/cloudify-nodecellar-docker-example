@@ -1,0 +1,8 @@
+{
+    "image": "",
+    "flavor": "",
+    "agent_user": "ubuntu",
+    "web_port": "",
+    "mongo_port": "",
+    "web_status_port": ""
+}
