@@ -44,22 +44,40 @@ Now let's look at the Nodecellar Container.
 
 In this example, we are going to have a container that runs the nodejs nodecellar application. The Docker plugin will pull the uric/nodecellar container from Docker Hub.
 
-    nodecellar_container:
-      type: cloudify.docker.Container
-      properties:
-        name: nodecellar
-        image:
-          repository: uric/nodecellar
-        ports:
-          8080: 8080
-        params:
-          stdin_open: true
-          tty: true
-          command: nodejs server.js
-          environment:
-            NODECELLAR_PORT: 8080
-            MONGO_PORT: 27017
-
+  nodecellar_container:
+    type: cloudify.docker.Container
+    properties:
+      name: nodecellar
+      image:
+        repository: uric/nodecellar
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: docker.docker_plugin.tasks.create_container
+          inputs:
+            params:
+              ports:
+                - { get_input: web_port }
+              stdin_open: true
+              tty: true
+              command: nodejs server.js
+              environment:
+                NODECELLAR_PORT: { get_input: web_port }
+                MONGO_PORT: { get_input: mongo_port }
+                MONGO_HOST: { get_property: [ mongod_container, name ] }
+        start:
+          implementation: docker.docker_plugin.tasks.start
+          inputs:
+            params:
+              links:
+                 mongod: { get_property: [ mongod_container, name ] }
+              port_bindings: { get_input: nodecellar_container_port_bindings }
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: host
+      - type: cloudify.relationships.depends_on
+        target: mongod_container
+        
 
 The plugin configures the container to expose port 8080, with a pseudo TTY, and two environment variables NODECELLAR_PORT, and MONGO_PORT.
 
@@ -68,19 +86,32 @@ Notice that port 8080 is mapped to port 8080. You could change this to map port 
 
 Next is the MongoDB container. The plugin will pull the dockerfile/mongodb image from Dockerhub, and create a container that exposes ports 27017 and 28017.
 
-    mongod_container:
-      type: cloudify.docker.Container
-      properties:
-        name: mongod
-        image:
-          repository: dockerfile/mongodb
-        ports:
-          27017: 27017
-          28017: 28017
-        params:
-          stdin_open: true
-          tty: true
-          command: mongod --rest --httpinterface --smallfiles
+  mongod_container:
+    type: cloudify.docker.Container
+    properties:
+      name: mongod
+      image:
+        repository: dockerfile/mongodb
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: docker.docker_plugin.tasks.create_container
+          inputs:
+            params:
+              ports:
+                - { get_input: mongo_port }
+                - { get_input: web_status_port }
+              stdin_open: true
+              tty: true
+              command: mongod --rest --httpinterface --smallfiles
+        start:
+          implementation: docker.docker_plugin.tasks.start
+          inputs:
+            params:
+              port_bindings: { get_input: mongo_container_port_bindings }
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: host
 
 
 The plugin then starts the container with a pseudo TTY and runs the command `mondod --rest --httpinterface --smallfiles`. Again the ports 27017 and 28017 are mapped to themselves, but you could change them to different mappings if you configured MongoDB to other ports.
@@ -91,11 +122,7 @@ Now, let's get Cloudify setup so you can run the plugin.
 
 Start by installing the plugins:
 
-`cfy local install-plugins -p docker-singlehost-blueprint.yaml`
-
-Now initialize the environment:
-
-`cfy local init -p docker-singlehost-blueprint.yaml`
+`cfy local init --install-plugins -p blueprint/singlehost.yaml`
 
 Now you are ready to run the blueprint:
 
@@ -103,7 +130,7 @@ Now you are ready to run the blueprint:
 
 This might take a while to execute. It needs to install download the Docker images and then it will create the containers.
 
-When it is finished, you can open a browser to 127.0.0.1 and you will see the Nodecellar application.
+When it is finished, you can open a browser to 127.0.0.1:8080 and you will see the Nodecellar application.
 
 # Running the example inside of a manager
 
@@ -193,7 +220,7 @@ Now tell Cloudify, the URL of your manager:
 
 Upload the blueprint:
 
-`cfy blueprints upload -p docker-openstack-blueprint.yaml -b nodecellar-docker`
+`cfy blueprints upload -p openstack.yaml -b nodecellar-docker`
 
 Create a deployment:
 
