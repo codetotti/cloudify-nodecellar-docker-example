@@ -50,7 +50,7 @@ inputs:
 
 node_types:
 
-  vm_with_docker_running:
+  monitored_docker_host:
     derived_from: cloudify.openstack.nodes.Server
     properties:
       cloudify_agent:
@@ -125,7 +125,7 @@ node_templates:
           port: 22
 
   mongo_vm:
-    type: vm_with_docker_running
+    type: docker_host
     properties:
       cloudify_agent:
         user: { get_input: agent_user }
@@ -135,7 +135,7 @@ node_templates:
         target: mongod_security_group
 
   node_vm:
-    type: vm_with_docker_running
+    type: docker_host
     properties:
       cloudify_agent:
         user: { get_input: agent_user }
