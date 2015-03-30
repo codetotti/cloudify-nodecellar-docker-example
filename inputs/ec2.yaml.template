@@ -1,0 +1,8 @@
+image: '',
+flavor: '',
+agent_user: 'ubuntu',
+web_port: '8080',
+mongo_port: '27017',
+web_status_port: '28017',
+nodecellar_container_port_bindings: { '8080': 8080 },
+mongo_container_port_bindings: { '27017': 27017, '28017': 28017 }

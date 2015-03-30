@@ -1,0 +1,3 @@
+install_agent: true,
+host_ip: '11.0.0.7',
+agent_user: 'vagrant'
