@@ -67,48 +67,70 @@ node_templates:
         type: cloudify.vcloud.server_connected_to_port
       - target: nodecellar_floatingip
         type: cloudify.vcloud.server_connected_to_floating_ip
- 
-
-  nodecellar_container:
-    type: cloudify.docker.Container
-    properties:
-      name: nodecellar
-      image:
-        repository: { get_input: nodecellar_docker_image }
-      ports:
-        8080: { get_input: web_port }
-      params:
-        stdin_open: true
-        tty: true
-        command: nodejs server.js
-        links:
-           mongod: { get_property: [ mongod_container, name ] }
-        environment:
-          NODECELLAR_PORT: { get_input: web_port }
-          MONGO_PORT: { get_input: mongo_port }
-          MONGO_HOST: { get_property: [ mongod_container, name ] }
-    relationships:
-      - type: cloudify.relationships.contained_in
-        target: vm
-      - type: cloudify.relationships.connected_to
-        target: mongod_container
 
   mongod_container:
     type: cloudify.docker.Container
     properties:
       name: mongod
       image:
-        repository: { get_input: mongodb_docker_image }
-      ports:
-        27017: { get_input: mongo_port }
-        28017: { get_input: web_status_port }
-      params:
-        stdin_open: true
-        tty: true
-        command: mongod --rest --httpinterface --smallfiles
+        repository: dockerfile/mongodb
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: docker.docker_plugin.tasks.create_container
+          inputs:
+            params:
+              ports:
+                - { get_input: mongo_port }
+                - { get_input: web_status_port }
+              stdin_open: true
+              tty: true
+              command: mongod --rest --httpinterface --smallfiles
+        start:
+          implementation: docker.docker_plugin.tasks.start
+          inputs:
+            params:
+              port_bindings:
+                27017: 27017
+                28017: 28017
     relationships:
       - type: cloudify.relationships.contained_in
         target: vm
+
+  nodecellar_container:
+    type: cloudify.docker.Container
+    properties:
+      name: nodecellar
+      image:
+        repository: uric/nodecellar
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: docker.docker_plugin.tasks.create_container
+          inputs:
+            params:
+              ports:
+                - { get_input: web_port }
+              stdin_open: true
+              tty: true
+              command: nodejs server.js
+              environment:
+                NODECELLAR_PORT: { get_input: web_port }
+                MONGO_PORT: { get_input: mongo_port }
+                MONGO_HOST: { get_property: [ mongod_container, name ] }
+        start:
+          implementation: docker.docker_plugin.tasks.start
+          inputs:
+            params:
+              links:
+                 mongod: { get_property: [ mongod_container, name ] }
+              port_bindings:
+                8080: 8080
+    relationships:
+      - type: cloudify.relationships.contained_in
+        target: vm
+      - type: cloudify.relationships.depends_on
+        target: mongod_container
 
   management_port:
       type: cloudify.vcloud.nodes.Port
@@ -117,7 +139,7 @@ node_templates:
             network: { get_input: management_network_name }
             ip_allocation_mode: dhcp
             primary_interface: true
- 
+
   nodecellar_floatingip:
       type: cloudify.vcloud.nodes.FloatingIP
       properties:
