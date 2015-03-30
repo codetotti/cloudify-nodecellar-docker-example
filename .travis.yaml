@@ -10,9 +10,6 @@ install:
     - pip install https://github.com/cloudify-cosmo/cloudify-plugins-common/archive/3.2m8.zip
     - pip install https://github.com/cloudify-cosmo/cloudify-script-plugin/archive/1.2m8.zip
     - pip install https://github.com/cloudify-cosmo/cloudify-cli/archive/3.2m8.zip
-    - pip install https://github.com/cloudify-cosmo/cloudify-openstack-plugin/archive/1.2m8.zip
-    - pip install https://github.com/cloudify-cosmo/cloudify-cloudstack-plugin/archive/1.2m8.zip
-    - pip install https://github.com/cloudify-cosmo/cloudify-softlayer-plugin/archive/1.2m8.zip
     - pip install flake8
 
 env:
@@ -26,7 +23,6 @@ script:
           cfy blueprints validate -p ec2-blueprint.yaml
           cfy blueprints validate -p openstack-blueprint.yaml
           cfy blueprints validate -p singlehost-blueprint.yaml
-          cfy blueprints validate -p vcloud-blueprint.yaml
         else
           exit 1
         fi;
