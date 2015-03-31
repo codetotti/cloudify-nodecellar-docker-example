@@ -1,30 +1,48 @@
 cloudify-nodecellar-docker-example
 ==================================
 
-Sample application running inside docker containers
+Sample application running inside docker containers.
 
-## Single-host Walk Through
+Nodecellar is a nodejs frontend that uses a mongo database as its backend.
 
-Nodecellar is a nodejs frontend that uses a mongo database as its backend. In this example each software component of the application is run inside of its own Docker contianer.
+In this example each nodejs and mongo run inside of Docker containers.
 
-Start out by installing Cloudify on your local machine. You can install Cloudify on Windows, Mac, or Linux. Visit the instructions [here.](http://getcloudify.org/guide/{{page.cloudify_version}}/installation-cli.html) In these instructions, we just install from pip:
+## Requirements
+ * Cloudify
+ * Docker (on any virtual host that runs the Docker containers.)
+
+
+
+## Step by step for Single host
+
+Start out by installing Cloudify on your local machine.
+
+You can install Cloudify on Windows, Mac, or Linux. Visit the instructions [here.](http://getcloudify.org/guide/3.2m8/installation-cli.html)
+
+If you already have virtualenv and pip installed, you can install Cloudify in a virtual environment:
+
+`virtualenv cloudify`
+
+`source cloudify/bin/activate`
 
 `pip install cloudify`
 
+
 Now we need to pull the git repository:
 
-`wget https://github.com/cloudify-cosmo/cloudify-nodecellar-docker-example/archive/3.1.zip`
+`wget https://github.com/cloudify-cosmo/cloudify-nodecellar-docker-example/archive/3.2m8.zip`
 
-The blueprint for the example is in the blueprint directory: docker-singlehost-blueprint.yaml. There is also an Openstack example for you to try there as well.
+Check out the singlehost blueprint: singlehost-blueprint.yaml.
 
 First notice the files that we import:
 
     imports:
-      - http://www.getcloudify.org/spec/cloudify/{{page.cloudify_version}}/types.yaml
-      - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-docker-plugin/{{page.plugin_version}}/plugin.yaml
+      - http://www.getcloudify.org/spec/cloudify/3.2m8/types.yaml
+      - http://www.getcloudify.org/spec/docker-plugin/1.2m8/plugin.yaml
 
 
-The nodes in the blueprint derive their base properties from these two files. They should match in the minor version. (3.1 and 1.1, or 3.0 and 1.0.)
+The nodes in the blueprint derive their base properties from these two files. They should match in the minor version. (3.2m8 and 1.m8, or 3.0 and 1.0, etc)
+
 
 Notice the first node_template: host. This describes the host machine that the Docker containers will run on. In this case it will be your local computer. However, this could be adjusted to be a vagrant box or something else. 
 
@@ -116,13 +134,14 @@ Next is the MongoDB container. The plugin will pull the dockerfile/mongodb image
 
 The plugin then starts the container with a pseudo TTY and runs the command `mondod --rest --httpinterface --smallfiles`. Again the ports 27017 and 28017 are mapped to themselves, but you could change them to different mappings if you configured MongoDB to other ports.
 
+
 ## Execute the Operations
 
 Now, let's get Cloudify setup so you can run the plugin.
 
 Start by installing the plugins:
 
-`cfy local init --install-plugins -p blueprint/singlehost.yaml`
+`cfy local init --install-plugins -p singlehost-blueprint.yaml`
 
 Now you are ready to run the blueprint:
 
@@ -132,17 +151,15 @@ This might take a while to execute. It needs to install download the Docker imag
 
 When it is finished, you can open a browser to 127.0.0.1:8080 and you will see the Nodecellar application.
 
+
+
 # Running the example inside of a manager
 
 ## Vagrant
 
 First download the Cloudify 3.1 Vagrantfile:
 
-`wget http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/3.1.0/ga-RELEASE/Vagrantfile`
-
-Then add the Vagrant box:
-
-`vagrant box add http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/3.1.0/ga-RELEASE/cloudify-virtualbox_3.1.0-ga-b85.box --name=cloudify-box`
+`wget http://gigaspaces-repository-eu.s3.amazonaws.com/org/cloudify3/3.2.0/m8-RELEASE/Vagrantfile`
 
 When the download is finished, you can "up" the box:
 
@@ -173,11 +190,11 @@ Change into the blueprints directory and download this example:
 
 And checkout the version:
 
-`git checkout tags/3.1`
+`git checkout tags/3.2m8`
 
 There are some minor changes to use the single host example in vagrant. So in that case you will use the vagrant_inputs.json file.
 
-`cfy blueprints upload -b nodecellar -p blueprint/docker-singlehost-blueprint.yaml`
+`cfy blueprints upload -b nodecellar -p singlehost-blueprint.yaml`
 
 Create a deployment:
 
@@ -188,6 +205,8 @@ And execute the install workflow:
 `cfy executions start -w install`
 
 After the deployment runs, you'll be able to go to the following URL and visit the Nodecellar application: http://11.0.0.7:8080/.
+
+
 
 ## Openstack
 
