@@ -4,6 +4,8 @@ imports:
   - http://www.getcloudify.org/spec/cloudify/3.2m8/types.yaml
   - http://www.getcloudify.org/spec/aws-plugin/1.2m8/plugin.yaml
   - http://www.getcloudify.org/spec/docker-plugin/1.2m8/plugin.yaml
+  - http://www.getcloudify.org/spec/diamond-plugin/1.2m8/plugin.yaml
+  - types/nodecellar.yaml
 
 inputs:
   image:
@@ -49,7 +51,7 @@ inputs:
 
 node_types:
 
-  monitored_docker_host:
+  nodecellar.nodes.MonitoredDockerHost:
     derived_from: cloudify.aws.nodes.Instance
     properties:
       cloudify_agent:
@@ -130,7 +132,7 @@ node_templates:
           cidr_ip: 0.0.0.0/0
 
   mongo_vm:
-    type: monitored_docker_host
+    type: nodecellar.nodes.MonitoredDockerHost
     properties:
       image_id: { get_input: image }
       instance_type: { get_input: size }
@@ -139,7 +141,7 @@ node_templates:
         target: mongod_security_group
 
   node_vm:
-    type: monitored_docker_host
+    type: nodecellar.nodes.MonitoredDockerHost
     properties:
       image_id: { get_input: image }
       instance_type: { get_input: size }
@@ -150,15 +152,10 @@ node_templates:
         target: nodecellar_elasticip
 
   mongod_container:
-    type: cloudify.docker.Container
-    properties:
-      name: mongod
-      image:
-        repository: dockerfile/mongodb
+    type: nodecellar.nodes.MongoContainer
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
-          implementation: docker.docker_plugin.tasks.create_container
           inputs:
             params:
               ports:
@@ -168,7 +165,6 @@ node_templates:
               tty: true
               command: mongod --rest --httpinterface --smallfiles
         start:
-          implementation: docker.docker_plugin.tasks.start
           inputs:
             params:
               port_bindings: { get_input: mongo_container_port_bindings }
@@ -177,15 +173,10 @@ node_templates:
         target: mongo_vm
 
   nodecellar_container:
-    type: cloudify.docker.Container
-    properties:
-      name: nodecellar
-      image:
-        repository: uric/nodecellar
+    type: nodecellar.nodes.NodecellarContainer
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
-          implementation: docker.docker_plugin.tasks.create_container
           inputs:
             params:
               ports:
@@ -198,7 +189,6 @@ node_templates:
                 MONGO_PORT: { get_input: mongo_port }
                 MONGO_HOST: { get_property: [ mongod_container, name ] }
         start:
-          implementation: docker.docker_plugin.tasks.start
           inputs:
             params:
               port_bindings: { get_input: nodecellar_container_port_bindings }
