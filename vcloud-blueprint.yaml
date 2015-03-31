@@ -51,6 +51,7 @@ inputs:
     type: string    
 
 node_templates:
+
   vm:
     type: cloudify.vcloud.nodes.Server
     properties:
@@ -61,12 +62,11 @@ node_templates:
           catalog: { get_input: catalog }
           template: { get_input: template }
       management_network: { get_input: management_network_name }
-
     relationships:
-      - target: management_port
-        type: cloudify.vcloud.server_connected_to_port
-      - target: nodecellar_floatingip
-        type: cloudify.vcloud.server_connected_to_floating_ip
+      - type: cloudify.vcloud.server_connected_to_port
+        target: management_port
+      - type: cloudify.vcloud.server_connected_to_floating_ip
+        target: nodecellar_floatingip
 
   mongod_container:
     type: cloudify.docker.Container
