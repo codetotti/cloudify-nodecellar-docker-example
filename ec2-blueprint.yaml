@@ -1,19 +1,20 @@
-tosca_definitions_version: cloudify_dsl_1_0
+tosca_definitions_version: cloudify_dsl_1_1
 
 imports:
   - http://www.getcloudify.org/spec/cloudify/3.2m8/types.yaml
-  - http://www.getcloudify.org/spec/openstack-plugin/1.2m8/plugin.yaml
-  - http://www.getcloudify.org/spec/diamond-plugin/1.2m8/plugin.yaml
+  - http://www.getcloudify.org/spec/aws-plugin/1.2m8/plugin.yaml
   - http://www.getcloudify.org/spec/docker-plugin/1.2m8/plugin.yaml
+  - http://www.getcloudify.org/spec/diamond-plugin/1.2m8/plugin.yaml
+  - types/nodecellar.yaml
 
 inputs:
   image:
     description: >
-      The OpenStack image ID 
+      The AWS AWI ID 
 
-  flavor:
+  size:
     description: >
-      The OpenStack flavor
+      The AWS instance type
 
   agent_user:
     description: >
@@ -50,18 +51,16 @@ inputs:
 
 node_types:
 
-  monitored_docker_host:
-    derived_from: cloudify.openstack.nodes.Server
+  nodecellar.nodes.MonitoredDockerHost:
+    derived_from: cloudify.aws.nodes.Instance
     properties:
       cloudify_agent:
         default:
           user: { get_input: agent_user }
           home_dir: /home/ubuntu
-      server:
+      parameters:
         default:
-          image: { get_input: image }
-          flavor: { get_input: flavor }
-          userdata: |
+          user_data: |
             #!/bin/bash
             sudo service ssh stop
             curl -o install.sh -sSL https://get.docker.com/
@@ -97,65 +96,66 @@ node_types:
 
 node_templates:
 
-  nodecellar_floatingip:
-    type: cloudify.openstack.nodes.FloatingIP
+  nodecellar_elasticip:
+    type: cloudify.aws.nodes.ElasticIP
 
   mongod_security_group:
-    type: cloudify.openstack.nodes.SecurityGroup
+    type: cloudify.aws.nodes.SecurityGroup
     properties:
-      security_group:
-        name: MongoDBSecGroup
+      description: MongoDBSecGroup
       rules:
-        - remote_ip_prefix: 0.0.0.0/0
-          port: { get_input: mongo_port }
-        - remote_ip_prefix: 0.0.0.0/0
-          port: { get_input: web_status_port }
-        - remote_ip_prefix: 0.0.0.0/0
-          port: 22
+        - ip_protocol: tcp
+          from_port: 22
+          to_port: 22
+          cidr_ip: 0.0.0.0/0
+        - ip_protocol: tcp
+          from_port: { get_input: mongo_port }
+          to_port: { get_input: mongo_port }
+          cidr_ip: 0.0.0.0/0
+        - ip_protocol: tcp
+          from_port: { get_input: web_status_port }
+          to_port: { get_input: web_status_port }
+          cidr_ip: 0.0.0.0/0
 
   nodecellar_security_group:
-    type: cloudify.openstack.nodes.SecurityGroup
+    type: cloudify.aws.nodes.SecurityGroup
     properties:
-      security_group:
-        name: NodeJSSecGroup
+      description: NodeJSSecGroup
       rules:
-        - remote_ip_prefix: 0.0.0.0/0
-          port: { get_input: web_port }
-        - remote_ip_prefix: 0.0.0.0/0
-          port: 22
+        - ip_protocol: tcp
+          from_port: 22
+          to_port: 22
+          cidr_ip: 0.0.0.0/0
+        - ip_protocol: tcp
+          from_port: { get_input: web_port }
+          to_port: { get_input: web_port }
+          cidr_ip: 0.0.0.0/0
 
   mongo_vm:
-    type: monitored_docker_host
+    type: nodecellar.nodes.MonitoredDockerHost
     properties:
-      cloudify_agent:
-        user: { get_input: agent_user }
-        home_dir: /home/ubuntu
+      image_id: { get_input: image }
+      instance_type: { get_input: size }
     relationships:
-      - type: cloudify.openstack.server_connected_to_security_group
+      - type: cloudify.aws.relationships.instance_connected_to_security_group
         target: mongod_security_group
 
   node_vm:
-    type: monitored_docker_host
+    type: nodecellar.nodes.MonitoredDockerHost
     properties:
-      cloudify_agent:
-        user: { get_input: agent_user }
-        home_dir: /home/ubuntu
+      image_id: { get_input: image }
+      instance_type: { get_input: size }
     relationships:
-      - target: nodecellar_security_group
-        type: cloudify.openstack.server_connected_to_security_group
-      - target: nodecellar_floatingip
-        type: cloudify.openstack.server_connected_to_floating_ip
+      - type: cloudify.aws.relationships.instance_connected_to_security_group
+        target: nodecellar_security_group
+      - type: cloudify.aws.relationships.instance_connected_to_elastic_ip
+        target: nodecellar_elasticip
 
   mongod_container:
-    type: cloudify.docker.Container
-    properties:
-      name: mongod
-      image:
-        repository: dockerfile/mongodb
+    type: nodecellar.nodes.MongoContainer
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
-          implementation: docker.docker_plugin.tasks.create_container
           inputs:
             params:
               ports:
@@ -165,7 +165,6 @@ node_templates:
               tty: true
               command: mongod --rest --httpinterface --smallfiles
         start:
-          implementation: docker.docker_plugin.tasks.start
           inputs:
             params:
               port_bindings: { get_input: mongo_container_port_bindings }
@@ -174,15 +173,10 @@ node_templates:
         target: mongo_vm
 
   nodecellar_container:
-    type: cloudify.docker.Container
-    properties:
-      name: nodecellar
-      image:
-        repository: uric/nodecellar
+    type: nodecellar.nodes.NodecellarContainer
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
-          implementation: docker.docker_plugin.tasks.create_container
           inputs:
             params:
               ports:
@@ -195,7 +189,6 @@ node_templates:
                 MONGO_PORT: { get_input: mongo_port }
                 MONGO_HOST: { get_property: [ mongod_container, name ] }
         start:
-          implementation: docker.docker_plugin.tasks.start
           inputs:
             params:
               port_bindings: { get_input: nodecellar_container_port_bindings }
@@ -211,5 +204,5 @@ outputs:
   endpoint:
     description: Web application endpoint
     value:
-      ip_address: { get_attribute: [ nodecellar_floatingip, floating_ip_address ] }
+      ip_address: { get_attribute: [ nodecellar_elasticip, aws_resource_id ] }
       port: { get_input: web_port }

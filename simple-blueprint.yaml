@@ -3,6 +3,7 @@ tosca_definitions_version: cloudify_dsl_1_0
 imports:
   - http://www.getcloudify.org/spec/cloudify/3.2m8/types.yaml
   - http://www.getcloudify.org/spec/docker-plugin/1.2m8/plugin.yaml
+  - types/nodecellar.yaml
 
 inputs:
 
@@ -31,12 +32,12 @@ inputs:
       description: >
         Which port you want to map the web port to.
       default: 8080
-  
+
   mongo_port:
       description: >
         Which port you want to map the mongo port to.
       default: 27017
-  
+
   web_status_port:
       description: >
         Which port for the mongo web status page.
@@ -67,11 +68,7 @@ node_templates:
         key: { get_input: agent_private_key_path }
 
   mongod_container:
-    type: cloudify.docker.Container
-    properties:
-      name: mongod
-      image:
-        repository: dockerfile/mongodb
+    type: nodecellar.nodes.MongoContainer
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -94,15 +91,10 @@ node_templates:
         target: host
 
   nodecellar_container:
-    type: cloudify.docker.Container
-    properties:
-      name: nodecellar
-      image:
-        repository: uric/nodecellar
+    type: nodecellar.nodes.NodecellarContainer
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
-          implementation: docker.docker_plugin.tasks.create_container
           inputs:
             params:
               ports:
@@ -115,7 +107,6 @@ node_templates:
                 MONGO_PORT: { get_input: mongo_port }
                 MONGO_HOST: { get_property: [ mongod_container, name ] }
         start:
-          implementation: docker.docker_plugin.tasks.start
           inputs:
             params:
               links:
