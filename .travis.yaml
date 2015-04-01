@@ -22,7 +22,7 @@ script:
           cfy init
           cfy blueprints validate -p ec2-blueprint.yaml
           cfy blueprints validate -p openstack-blueprint.yaml
-          cfy blueprints validate -p singlehost-blueprint.yaml
+          cfy blueprints validate -p simple-blueprint.yaml
         else
           exit 1
         fi;
