@@ -173,6 +173,8 @@ You need to install Docker, because the plugin's Docker installation script only
 
 `curl -sSL https://get.docker.com/ubuntu/ | sudo sh`
 
+Add the agent user to the docker group, as the plugin requires that the agent user is able to manager docker without sudo.
+
 `sudo gpasswd -a ${USER} docker`
 
 Now logout and log back in:
@@ -215,7 +217,7 @@ This is an example running the Openstack blueprint.
 The Openstack is slightly different than what we have described:
 
 * Creates a virtual machine in Openstack.
-* Installs Docker on the virtual machine.
+* Installs Docker on the virtual machine. (However, this is not supported. There is POC workaround in the blueprint. But in principle, users should bring a image in Openstack with Docker preinstalled and the agent user added to the Docker group.)
 * Pulls the respective images and runs the containers on the virtual machine.
 * Creates two security groups: Nodecellar, and Mongo, and attaches them to the manager.
 * There is a cloudify.relationships.connected_to relationship between the Nodecellar and Mongo security groups, which might strike you as odd. This is a temporary work-around for an Openstack issue where simultaneously connecting security groups to a server might fail without an error. This work-around creates a dependency between these security groups to make sure that one is attached first, and then the other.
