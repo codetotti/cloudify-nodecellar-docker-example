@@ -62,6 +62,8 @@ Now let's look at the Nodecellar Container.
 
 In this example, we are going to have a container that runs the nodejs nodecellar application. The Docker plugin will pull the uric/nodecellar container from Docker Hub.
 
+```
+
   nodecellar_container:
     type: cloudify.docker.Container
     properties:
@@ -95,7 +97,8 @@ In this example, we are going to have a container that runs the nodejs nodecella
         target: host
       - type: cloudify.relationships.depends_on
         target: mongod_container
-        
+
+```        
 
 The plugin configures the container to expose port 8080, with a pseudo TTY, and two environment variables NODECELLAR_PORT, and MONGO_PORT.
 
@@ -103,6 +106,8 @@ Notice that port 8080 is mapped to port 8080. You could change this to map port 
 
 
 Next is the MongoDB container. The plugin will pull the dockerfile/mongodb image from Dockerhub, and create a container that exposes ports 27017 and 28017.
+
+
 
   mongod_container:
     type: cloudify.docker.Container
@@ -132,7 +137,7 @@ Next is the MongoDB container. The plugin will pull the dockerfile/mongodb image
         target: host
 
 
-The plugin then starts the container with a pseudo TTY and runs the command `mondod --rest --httpinterface --smallfiles`. Again the ports 27017 and 28017 are mapped to themselves, but you could change them to different mappings if you configured MongoDB to other ports.
+The plugin then starts the container with a pseudo TTY and runs the command `mongod --rest --httpinterface --smallfiles`. Again the ports 27017 and 28017 are mapped to themselves, but you could change them to different mappings if you configured MongoDB to other ports.
 
 
 ## Execute the Operations
