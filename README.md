@@ -107,7 +107,7 @@ Notice that port 8080 is mapped to port 8080. You could change this to map port 
 
 Next is the MongoDB container. The plugin will pull the dockerfile/mongodb image from Dockerhub, and create a container that exposes ports 27017 and 28017.
 
-
+```
 
   mongod_container:
     type: cloudify.docker.Container
@@ -135,7 +135,7 @@ Next is the MongoDB container. The plugin will pull the dockerfile/mongodb image
     relationships:
       - type: cloudify.relationships.contained_in
         target: host
-
+```
 
 The plugin then starts the container with a pseudo TTY and runs the command `mongod --rest --httpinterface --smallfiles`. Again the ports 27017 and 28017 are mapped to themselves, but you could change them to different mappings if you configured MongoDB to other ports.
 
