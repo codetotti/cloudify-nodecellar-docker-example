@@ -21,7 +21,7 @@ node_types:
         default: mongod
       image:
         default:
-          repository: dockerfile/mongodb
+          repository: mongo
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
