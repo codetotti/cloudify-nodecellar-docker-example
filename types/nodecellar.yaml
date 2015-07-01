@@ -21,6 +21,7 @@ node_types:
         default: mongod
       image:
         default:
+          tag: '3.1'
           repository: mongo
     interfaces:
       cloudify.interfaces.lifecycle:
