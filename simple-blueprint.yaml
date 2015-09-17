@@ -1,4 +1,4 @@
-tosca_definitions_version: cloudify_dsl_1_0
+tosca_definitions_version: cloudify_dsl_1_2
 
 imports:
   - http://www.getcloudify.org/spec/cloudify/3.3m6/types.yaml
@@ -9,7 +9,7 @@ inputs:
 
   host_ip:
       description: >
-        The ip of the host the application will be deployed on  
+        The ip of the host the application will be deployed on
       default: 127.0.0.1
 
   agent_user:
@@ -23,8 +23,8 @@ inputs:
         SSH-ing into agent machines will be done with this key.
       default: ~/.ssh/agent_key.pem
 
-  install_agent: 
-      description: > 
+  install_agent:
+      description: >
         When running in local mode set this to false
       default: false
 
